@@ -1,0 +1,725 @@
+/* Shared styling for the Masters screens */
+
+.code-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: var(--sunk);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg-2);
+  letter-spacing: 0.02em;
+}
+
+.master-filter {
+  width: auto;
+  min-width: 170px;
+  min-height: 36px;
+  height: 36px;
+  padding-top: 0;
+  padding-bottom: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* SLA bar on the priority list */
+.sla {
+  display: grid;
+  gap: 6px;
+  min-width: 180px;
+}
+
+.sla__row {
+  display: grid;
+  grid-template-columns: 74px 1fr 46px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.sla__track {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--sunk);
+  overflow: hidden;
+}
+
+.sla__fill {
+  height: 100%;
+  border-radius: inherit;
+  background: var(--c);
+  transition: width 0.5s var(--ease);
+}
+
+.sla__fill--soft {
+  background: color-mix(in srgb, var(--c) 45%, transparent);
+}
+
+.sla__val {
+  text-align: right;
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.default-star {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--amber);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.default-star svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+}
+
+/* Workflow strip on the status screen */
+.workflow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, color-mix(in srgb, var(--accent) 6%, transparent), transparent 60%),
+    var(--surface);
+}
+
+.workflow__label {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 6px;
+}
+
+.workflow__arrow {
+  color: var(--faint);
+  width: 16px;
+  height: 16px;
+}
+
+.type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--fg-2);
+}
+
+.type-tag svg {
+  width: 14px;
+  height: 14px;
+}
+
+.flag-yes {
+  color: var(--fg);
+  font-weight: 700;
+}
+
+.flag-no {
+  color: var(--faint);
+}
+
+/* Users & teams */
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.avatar-stack {
+  display: inline-flex;
+  align-items: center;
+}
+
+.avatar-stack .avatar {
+  border: 2px solid var(--surface);
+  margin-left: -8px;
+}
+
+.avatar-stack .avatar:first-child {
+  margin-left: 0;
+}
+
+.avatar-stack__more {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.role-chip--super_admin {
+  --c: var(--danger);
+}
+
+.role-chip--admin {
+  --c: var(--accent);
+}
+
+.role-chip--employee {
+  --c: var(--info);
+}
+
+.form-section-title {
+  grid-column: 1 / -1;
+  padding-top: 6px;
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.preview-chip-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px dashed var(--line-strong);
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* ───────── Employees & organizations ───────── */
+a.btn:hover {
+  text-decoration: none;
+}
+
+/* role priority badge: P1 strongest */
+.rp {
+  display: inline-grid;
+  place-items: center;
+  min-width: 26px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rp--1 {
+  background: var(--ink);
+  color: var(--mint);
+}
+
+.rp--2 {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+
+.rp--3 {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.rp--4 {
+  background: var(--sunk);
+  color: var(--fg-2);
+}
+
+[data-theme='dark'] .rp--1 {
+  background: var(--mint);
+  color: var(--ink);
+}
+
+.assign-cell {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.org-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.org-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 3px 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  font-size: 12.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* organization picker inside the employee form */
+.org-pick {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.org-pick li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 7px 10px;
+  border-radius: var(--radius-sm);
+  border: 1.5px solid var(--line);
+  background: var(--surface-2);
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.org-pick li.is-on {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+
+.org-pick__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  border: 0;
+  background: none;
+  padding: 4px 0;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.org-pick__toggle[aria-checked='true'] .option__check {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.org-pick__name small {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.org-pick__level {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+}
+
+.org-pick__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.org-pick__takes {
+  flex-basis: 100%;
+  text-align: right;
+  font-size: 11.5px;
+  color: var(--muted);
+}
+
+.org-pick__off {
+  font-size: 12px;
+  color: var(--faint);
+  font-weight: 600;
+}
+
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  overflow: hidden;
+}
+
+.stepper button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 100%;
+  border: 0;
+  background: transparent;
+  color: var(--fg-2);
+}
+
+.stepper button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.stepper button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.stepper input {
+  width: 34px;
+  height: 100%;
+  border: 0;
+  border-inline: 1px solid var(--line);
+  background: transparent;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 13px;
+  -moz-appearance: textfield;
+}
+
+.stepper input::-webkit-inner-spin-button,
+.stepper input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+}
+
+.stepper input:focus {
+  outline: none;
+  background: var(--accent-soft);
+}
+
+/* organization-wise screen */
+.org-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 420px), 1fr));
+  gap: 12px;
+  align-items: start;
+}
+
+.org-card {
+  padding: 14px 16px;
+  animation: fade-up 0.4s var(--ease) both;
+}
+
+.org-card.is-inactive {
+  opacity: 0.6;
+}
+
+.org-card--unmapped {
+  border-style: dashed;
+}
+
+.org-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 10px;
+  margin-bottom: 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.org-card__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 17px;
+}
+
+.org-card__count {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.org-card__empty {
+  padding: 18px 0 4px;
+  color: var(--muted);
+}
+
+.org-levels {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.org-level {
+  padding: 10px 0 4px;
+}
+
+.org-level + .org-level {
+  border-top: 1px dashed var(--line);
+}
+
+.org-level__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.org-people {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.org-person {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 8px 10px;
+  margin: 0 -10px;
+  width: calc(100% + 20px);
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  text-align: left;
+  transition: background 0.12s;
+}
+
+.org-person:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.org-person:disabled {
+  cursor: default;
+}
+
+.org-person.is-inactive {
+  opacity: 0.5;
+}
+
+.org-person__meta {
+  display: grid;
+  flex: 1;
+  min-width: 0;
+}
+
+.org-person__meta strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.org-person__meta > span {
+  font-size: 12px;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.org-person__admin {
+  padding: 1px 6px;
+  border-radius: 5px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.org-person__open {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* ───────── HelpX integration script dialog ───────── */
+.script-dialog {
+  width: min(620px, calc(100vw - 32px));
+  display: grid;
+  gap: 12px;
+}
+
+.script-dialog__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.script-dialog__badge {
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--on-accent);
+  font-weight: 700;
+  font-size: 13px;
+}
+
+.script-dialog__lead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--fg-2);
+}
+
+.script-dialog__lead svg {
+  color: var(--warning);
+  flex-shrink: 0;
+}
+
+.script-dialog__lead code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--sunk);
+}
+
+.script-dialog__code {
+  min-height: 92px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  word-break: break-all;
+  resize: none;
+}
+
+.script-dialog__more {
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.script-dialog__more summary {
+  cursor: pointer;
+  font-weight: 700;
+  color: var(--fg-2);
+}
+
+.script-dialog__more p {
+  margin: 6px 0;
+}
+
+.script-dialog__more pre {
+  margin: 0 0 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--sunk);
+  color: var(--fg);
+  font-size: 12px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.script-dialog .dialog__actions {
+  margin-top: 4px;
+}
+
+/* client product SLA: per-priority hours in the mapping form */
+.sla-grid {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 6px;
+}
+
+.sla-grid th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+  padding: 0 8px;
+}
+
+.sla-grid td {
+  padding: 6px 8px;
+  background: var(--surface-2);
+  vertical-align: middle;
+}
+
+.sla-grid td:first-child {
+  border-radius: var(--radius-sm) 0 0 var(--radius-sm);
+}
+
+.sla-grid td:last-child {
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  width: 36px;
+}
+
+.sla-grid tr.is-custom td {
+  background: color-mix(in srgb, var(--accent) 7%, var(--surface));
+}
+
+.sla-grid .field__error {
+  margin-top: 4px;
+}
+
+.sla-grid__input {
+  width: 100%;
+  min-width: 70px;
+}
+
+.sla-grid__reset {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.sla-grid__reset:hover {
+  background: var(--surface);
+  color: var(--fg);
+}
+
+/* SLA chips in the client products table */
+.sla-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sla-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--c, var(--muted)) 35%, var(--line));
+  background: color-mix(in srgb, var(--c, var(--muted)) 8%, var(--surface));
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* client product picker in the employee form: one group per client */
+.assign-group + .assign-group {
+  margin-top: 14px;
+}
+
+.assign-group__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--muted);
+}

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Builds
+dist/
+build/
+*.tsbuildinfo
+
+# Environment (copy .env.example to .env)
+.env
+.env.local
+.env.*.local
+
+# Uploaded ticket attachments
+backend/uploads/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Editor / OS
+.idea/
+.DS_Store
+Thumbs.db
