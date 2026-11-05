@@ -4,10 +4,12 @@
  * Embed once in index.html (copy it from TicketDesk › Masters › Products › Script):
  *   <script src="https://YOUR-TICKETDESK/static/helpx-bot/helpx-bot.js?appClientId=KEY&productName=HRMS"></script>
  *
- * Tell the widget who is logged in (optional; otherwise the form asks):
- *   window.HelpXBot.identify({ username: 'ravi.kumar', email: 'ravi@company.com' });
- *   or set window.HelpXBotUser = { username, email } before the script,
- *   or add data-username / data-email to the script tag.
+ * The host application passes the logged-in user (the form never asks for it):
+ *   sessionStorage.setItem('ticketDeskUser', JSON.stringify({
+ *     username: 'ravi.kumar', email: 'ravi@company.com', clientName: 'Sakku Group', product: 'HRMS'
+ *   }));
+ *   (localStorage works too; another key can be set with &userKey=myKey in the script URL)
+ *   or window.HelpXBotUser = { ...same object }  or  window.HelpXBot.identify({ ...same object }).
  *
  * When a ticket is created the page receives:
  *   window.addEventListener('helpx:ticket-created', (e) => console.log(e.detail));
@@ -43,10 +45,47 @@
   var TYPES = [];
   var DEFAULT_TYPE = '';
 
-  var user = {
-    username: (window.HelpXBotUser && window.HelpXBotUser.username) || script.getAttribute('data-username') || '',
-    email: (window.HelpXBotUser && window.HelpXBotUser.email) || script.getAttribute('data-email') || '',
-  };
+  var USER_KEY = param('userKey') || 'ticketDeskUser';
+  var identified = null; // set through HelpXBot.identify()
+
+  /** Reads a field case-insensitively, accepting a few spellings (clientName / cilentname / client …). */
+  function pick(obj, names) {
+    if (!obj || typeof obj !== 'object') return '';
+    var keys = Object.keys(obj);
+    for (var i = 0; i < names.length; i++) {
+      for (var j = 0; j < keys.length; j++) {
+        var v = obj[keys[j]];
+        if (keys[j].toLowerCase() === names[i] && v != null && String(v).trim()) return String(v).trim();
+      }
+    }
+    return '';
+  }
+
+  function fromStorage(name) {
+    try {
+      var raw = window[name] && window[name].getItem(USER_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** The logged-in user as the host application passed it: identify() › window.HelpXBotUser › sessionStorage › localStorage. */
+  function currentUser() {
+    var sources = [identified, window.HelpXBotUser, fromStorage('sessionStorage'), fromStorage('localStorage')];
+    for (var i = 0; i < sources.length; i++) {
+      var src = sources[i];
+      var username = pick(src, ['username', 'user', 'loginname', 'userid']);
+      if (!username) continue;
+      return {
+        username: username,
+        email: pick(src, ['email', 'mail', 'emailid']),
+        clientName: pick(src, ['clientname', 'cilentname', 'client', 'organization']),
+        product: pick(src, ['product', 'productname', 'application']),
+      };
+    }
+    return null;
+  }
 
   if (!APP_CLIENT_ID) {
     console.warn('[HelpX] appClientId is missing from the script URL.');
@@ -189,26 +228,70 @@
     });
   }
 
-  /** Captures what the user currently sees (the widget itself is hidden first). */
+  var EXPAND = 'data-helpx-expand';
+  var MAX_CANVAS = 16000; // browsers refuse larger canvases
+
+  /** Big scrolling areas (e.g. the main content pane next to a fixed sidebar) whose hidden part must be captured too. */
+  function markScrollAreas() {
+    var minWidth = window.innerWidth * 0.3;
+    var marked = [];
+    var all = document.body ? document.body.getElementsByTagName('*') : [];
+    Array.prototype.forEach.call(all, function (el) {
+      if (el === host || el.scrollHeight <= el.clientHeight + 4 || el.clientWidth < minWidth || el.clientHeight < 80) return;
+      var oy = getComputedStyle(el).overflowY;
+      if (oy !== 'auto' && oy !== 'scroll' && oy !== 'overlay') return;
+      el.setAttribute(EXPAND, '');
+      marked.push(el);
+    });
+    var extra = 0;
+    marked.forEach(function (el) {
+      // only the outermost areas add height; nested ones grow inside their parent
+      var p = el.parentElement;
+      while (p && !p.hasAttribute(EXPAND)) p = p.parentElement;
+      if (!p) extra += el.scrollHeight - el.clientHeight;
+    });
+    return { marked: marked, extra: extra };
+  }
+
+  /** In html2canvas's copy of the page: let every scroll area and its parents grow to full height. */
+  function expandClone(doc) {
+    var css = ';height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important;';
+    doc.documentElement.style.cssText += css;
+    if (doc.body) doc.body.style.cssText += css;
+    Array.prototype.forEach.call(doc.querySelectorAll('[' + EXPAND + ']'), function (el) {
+      for (var n = el; n && n !== doc.body && n !== doc.documentElement; n = n.parentElement) n.style.cssText += css;
+    });
+  }
+
+  /** Captures the whole page, including what is scrolled out of view (the widget itself is hidden first). */
   function captureScreen() {
     var shown = host.style.display;
     host.style.display = 'none';
+    var areas = markScrollAreas();
+    var de = document.documentElement;
+    var fullHeight = Math.max(de.scrollHeight, document.body ? document.body.scrollHeight : 0, window.innerHeight) + areas.extra;
+    var fullWidth = Math.max(de.scrollWidth, de.clientWidth);
+    var scale = Math.min(window.devicePixelRatio || 1, 1.5, MAX_CANVAS / fullHeight, MAX_CANVAS / fullWidth);
+    var bg = getComputedStyle(document.body || de).backgroundColor;
     return loadHtml2Canvas()
       .then(function (h2c) {
-        return h2c(document.documentElement, {
+        return h2c(de, {
           logging: false,
           useCORS: true,
-          x: window.scrollX,
-          y: window.scrollY,
-          width: window.innerWidth,
-          height: window.innerHeight,
-          windowWidth: document.documentElement.clientWidth,
+          backgroundColor: bg && bg !== 'rgba(0, 0, 0, 0)' ? bg : '#ffffff',
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: de.clientWidth,
           windowHeight: window.innerHeight,
-          scale: Math.min(window.devicePixelRatio || 1, 1.5),
+          scale: scale,
+          onclone: expandClone,
         });
       })
       .then(canvasToFile)
       .finally(function () {
+        areas.marked.forEach(function (el) {
+          el.removeAttribute(EXPAND);
+        });
         host.style.display = shown;
       });
   }
@@ -278,12 +361,8 @@
     if (!panel) return;
     var s = panel.querySelector('[name=subject]');
     var d = panel.querySelector('[name=description]');
-    var u = panel.querySelector('[name=username]');
-    var e = panel.querySelector('[name=email]');
     if (s) state.draft.subject = s.value;
     if (d) state.draft.description = d.value;
-    if (u) state.draft.username = u.value;
-    if (e) state.draft.email = e.value;
   }
 
   function render() {
@@ -305,7 +384,8 @@
       return;
     }
 
-    var known = !!user.username;
+    var user = currentUser();
+    var heading = user && (user.clientName || user.product) ? [user.clientName, user.product].filter(Boolean).join(' · ') : state.organization;
     var shots = state.screenshots
       .map(function (s, i) {
         return '<div class="shot" data-zoom="' + i + '"><img src="' + s.url + '" alt="Screenshot ' + (i + 1) + '"><button type="button" data-remove-shot="' + i + '" aria-label="Remove screenshot">' + ICON.close + '</button></div>';
@@ -313,16 +393,15 @@
       .join('');
 
     panel.innerHTML =
-      '<div class="head"><h2>Raising Ticket<small>' + esc(state.organization || 'Support') + '</small></h2>' +
+      '<div class="head"><h2>Raising Ticket<small>' + esc(heading || 'Support') + '</small></h2>' +
       '<button class="tool" data-act="retake" title="Take the screenshot again">' + ICON.camera + 'Retake</button>' +
       '<button class="tool" data-act="add" title="Add another screenshot"' + (state.screenshots.length + state.files.length >= MAX_FILES ? ' disabled' : '') + '>' + ICON.plus + 'Add</button>' +
       '<button class="x" data-act="close" aria-label="Close">' + ICON.close + '</button></div>' +
       '<div class="body">' +
       (shots ? '<div class="shots">' + shots + '</div>' : '<div class="note">No screenshot yet. Use Retake, or paste an image with Ctrl+V.</div>') +
-      (known
+      (user
         ? '<div class="as">Reporting as <b>' + esc(user.username) + '</b>' + (user.email ? ' · ' + esc(user.email) : '') + '</div>'
-        : '<div class="row"><label class="f">Username<input type="text" name="username" placeholder="Enter Username" maxlength="100" value="' + esc(state.draft.username || '') + '"></label>' +
-          '<label class="f">Email<input type="email" name="email" placeholder="Enter Email" maxlength="150" value="' + esc(state.draft.email || '') + '"></label></div>') +
+        : '<div class="err">The logged-in user was not passed to HelpX, so a ticket cannot be raised. Please contact your administrator.</div>') +
       '<label class="f">Subject<input type="text" name="subject" placeholder="Enter Subject" maxlength="200" value="' + esc(state.draft.subject) + '"></label>' +
       '<label class="f">Description<textarea name="description" placeholder="Describe your issue…">' + esc(state.draft.description) + '</textarea></label>' +
       '<div class="upload">Upload <button type="button" class="btn2" data-act="browse">' + ICON.clip + 'Choose files</button><input type="file" multiple hidden></div>' +
@@ -374,12 +453,11 @@
 
   function submit() {
     remember();
-    var username = user.username || (state.draft.username || '').trim();
-    var email = user.email || (state.draft.email || '').trim();
+    var user = currentUser();
     var subject = state.draft.subject.trim();
     var description = state.draft.description.trim();
 
-    if (!username) state.error = 'Enter your username';
+    if (!user) state.error = 'The logged-in user was not passed to HelpX. Please contact your administrator.';
     else if (!subject) state.error = 'Enter a subject';
     else if (description.length < 5) state.error = 'Describe the issue in a few words';
     else state.error = null;
@@ -388,8 +466,10 @@
     var form = new FormData();
     form.append('appClientId', APP_CLIENT_ID);
     if (APP_NAME) form.append('productName', APP_NAME);
-    form.append('username', username);
-    if (email) form.append('email', email);
+    form.append('username', user.username);
+    if (user.email) form.append('email', user.email);
+    if (user.clientName) form.append('clientName', user.clientName);
+    if (user.product) form.append('product', user.product);
     form.append('subject', subject);
     form.append('description', description);
     if (state.type) form.append('ticketTypeId', state.type);
@@ -500,9 +580,9 @@
   // ---------- public API ----------
   window.HelpXBot = {
     __loaded: true,
+    /** identify({ username, email, clientName, product }); identify(null) on logout */
     identify: function (u) {
-      user.username = (u && u.username) || '';
-      user.email = (u && u.email) || '';
+      identified = u || null;
       render();
     },
     open: function () {

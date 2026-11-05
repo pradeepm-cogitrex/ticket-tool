@@ -14,9 +14,21 @@ export class WidgetTicketDto {
   @MaxLength(100)
   productName?: string;
 
-  /** the user logged in to that application */
+  /** client name passed by the host application with the user (informational) */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty({ message: 'Enter your username' })
+  @MaxLength(150)
+  clientName?: string;
+
+  /** product name passed by the host application with the user (informational) */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  product?: string;
+
+  /** the user logged in to that application, passed by the host application */
+  @IsString()
+  @IsNotEmpty({ message: 'The logged-in user was not passed to HelpX' })
   @MaxLength(100)
   username: string;
 

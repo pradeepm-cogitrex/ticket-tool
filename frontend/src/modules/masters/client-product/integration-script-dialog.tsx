@@ -19,10 +19,15 @@ const scriptOrigin = (): string => {
 export const integrationScript = (mapping: ClientProduct): string =>
   `<script src="${scriptOrigin()}/static/helpx-bot/helpx-bot.js?appClientId=${mapping.clientKey ?? ''}&productName=${encodeURIComponent(mapping.product.name)}"></script>`;
 
-const IDENTIFY_SNIPPET = `<script>
-  // optional: after login, tell HelpX who the user is
-  window.HelpXBot && window.HelpXBot.identify({ username: 'USERNAME', email: 'EMAIL' });
-</script>`;
+/** After login the application stores the user; the widget reads it when a ticket is raised. */
+const loginSnippet = (mapping: ClientProduct): string => `sessionStorage.setItem('ticketDeskUser', JSON.stringify({
+  username: "",            // logged-in user's login name (required)
+  email: "",               // logged-in user's email
+  clientName: ${JSON.stringify(mapping.client.name)},
+  product: ${JSON.stringify(mapping.product.name)}
+}));`;
+
+const LOGOUT_SNIPPET = `sessionStorage.removeItem('ticketDeskUser');`;
 
 interface IntegrationScriptDialogProps {
   mapping: ClientProduct | null;
@@ -43,6 +48,7 @@ export function IntegrationScriptDialog({ mapping, onClose }: IntegrationScriptD
 
   if (!mapping) return null;
   const script = integrationScript(mapping);
+  const login = loginSnippet(mapping);
 
   const copy = async (text: string, label: string) => {
     try {
@@ -64,23 +70,39 @@ export function IntegrationScriptDialog({ mapping, onClose }: IntegrationScriptD
           <span className="code-badge">{mapping.product.code}</span>
           <span className="muted">{pairLabel(mapping)}</span>
         </div>
-        <p className="script-dialog__lead" id="script-title">
-          <AlertCircle size={16} /> Please embed this script in your <code>index.html</code>
+        <div className="script-step">
+          <p className="script-dialog__lead" id="script-title">
+            <span className="script-step__no">1</span> Embed this script in your <code>index.html</code>
+          </p>
+          <textarea ref={box} className="textarea mono script-dialog__code" readOnly value={script} rows={4} onFocus={(e) => e.target.select()} />
+          <Button size="sm" icon={<Copy />} onClick={() => copy(script, 'Script')} disabled={!mapping.clientKey}>
+            Copy script
+          </Button>
+        </div>
+        <div className="script-step">
+          <p className="script-dialog__lead">
+            <span className="script-step__no">2</span> After login, pass the logged-in user (also after a page reload)
+          </p>
+          <pre className="mono script-step__code">{login}</pre>
+          <Button size="sm" icon={<Copy />} onClick={() => copy(login, 'Login code')}>
+            Copy login code
+          </Button>
+        </div>
+        <div className="script-step">
+          <p className="script-dialog__lead">
+            <span className="script-step__no">3</span> On logout, remove the user
+          </p>
+          <pre className="mono script-step__code">{LOGOUT_SNIPPET}</pre>
+          <Button size="sm" icon={<Copy />} onClick={() => copy(LOGOUT_SNIPPET, 'Logout code')}>
+            Copy logout code
+          </Button>
+        </div>
+        <p className="script-dialog__note">
+          <AlertCircle size={14} /> The widget does not ask for username or email; without step 2 tickets cannot be raised. Subject, description,
+          screenshot and attachments come from the widget form.
         </p>
-        <textarea ref={box} className="textarea mono script-dialog__code" readOnly value={script} rows={4} onFocus={(e) => e.target.select()} />
-        <details className="script-dialog__more">
-          <summary>Pass the logged-in user (optional)</summary>
-          <p>Without this, the widget asks the user for their username and email.</p>
-          <pre className="mono">{IDENTIFY_SNIPPET}</pre>
-          <Button size="sm" icon={<Copy />} onClick={() => copy(IDENTIFY_SNIPPET, 'Snippet')}>
-            Copy snippet
-          </Button>
-        </details>
         <div className="dialog__actions">
-          <Button onClick={onClose}>Cancel</Button>
-          <Button variant="primary" icon={<Copy />} onClick={() => copy(script, 'Script')} disabled={!mapping.clientKey}>
-            Copy
-          </Button>
+          <Button onClick={onClose}>Close</Button>
         </div>
       </div>
     </>,

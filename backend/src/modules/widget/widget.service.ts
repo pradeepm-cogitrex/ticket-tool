@@ -109,7 +109,7 @@ export class WidgetService {
     return {
       ticketId: ticketNo,
       organization: mapping.client.name,
-      application: clean(dto.productName) || mapping.product.name,
+      application: clean(dto.product) || clean(dto.productName) || mapping.product.name,
       createUser: dto.username.trim(),
       createdAt: now.toISOString(),
       subject: dto.subject.trim(),
