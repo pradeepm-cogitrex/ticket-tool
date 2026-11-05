@@ -4,7 +4,7 @@
  * Embed once in index.html (copy it from TicketDesk › Masters › Products › Script):
  *   <script src="https://YOUR-TICKETDESK/static/helpx-bot/helpx-bot.js?appClientId=KEY&productName=HRMS"></script>
  *
- * The host application passes the logged-in user (the form never asks for it):
+ * The host application can pass the logged-in user (if it does not, the form asks for Username and Email):
  *   sessionStorage.setItem('ticketDeskUser', JSON.stringify({
  *     username: 'ravi.kumar', email: 'ravi@company.com', clientName: 'Sakku Group', product: 'HRMS'
  *   }));
@@ -76,10 +76,11 @@
     for (var i = 0; i < sources.length; i++) {
       var src = sources[i];
       var username = pick(src, ['username', 'user', 'loginname', 'userid']);
-      if (!username) continue;
+      var email = pick(src, ['email', 'mail', 'emailid']);
+      if (!username && !email) continue;
       return {
         username: username,
-        email: pick(src, ['email', 'mail', 'emailid']),
+        email: email,
         clientName: pick(src, ['clientname', 'cilentname', 'client', 'organization']),
         product: pick(src, ['product', 'productname', 'application']),
       };
@@ -353,16 +354,29 @@
     state.includeScreenshot = true;
     state.error = null;
     state.result = null;
-    state.draft = { subject: '', description: '' };
+    state.draft = { subject: '', description: '', username: state.draft.username, email: state.draft.email };
   }
-  state.draft = { subject: '', description: '' };
+  state.draft = { subject: '', description: '', username: '', email: '' };
 
   function remember() {
     if (!panel) return;
-    var s = panel.querySelector('[name=subject]');
-    var d = panel.querySelector('[name=description]');
-    if (s) state.draft.subject = s.value;
-    if (d) state.draft.description = d.value;
+    ['subject', 'description', 'username', 'email'].forEach(function (name) {
+      var el = panel.querySelector('[name=' + name + ']');
+      if (el) state.draft[name] = el.value;
+    });
+  }
+
+  /** The user from the host app, with the Username / Email the person typed filling whatever was not passed. */
+  function reporter() {
+    var u = currentUser();
+    return {
+      username: (u && u.username) || state.draft.username.trim(),
+      email: (u && u.email) || state.draft.email.trim(),
+      clientName: (u && u.clientName) || '',
+      product: (u && u.product) || '',
+      askName: !(u && u.username),
+      askEmail: !(u && u.email),
+    };
   }
 
   function render() {
@@ -384,8 +398,8 @@
       return;
     }
 
-    var user = currentUser();
-    var heading = user && (user.clientName || user.product) ? [user.clientName, user.product].filter(Boolean).join(' · ') : state.organization;
+    var user = reporter();
+    var heading = user.clientName || user.product ? [user.clientName, user.product].filter(Boolean).join(' · ') : state.organization;
     var shots = state.screenshots
       .map(function (s, i) {
         return '<div class="shot" data-zoom="' + i + '"><img src="' + s.url + '" alt="Screenshot ' + (i + 1) + '"><button type="button" data-remove-shot="' + i + '" aria-label="Remove screenshot">' + ICON.close + '</button></div>';
@@ -399,9 +413,21 @@
       '<button class="x" data-act="close" aria-label="Close">' + ICON.close + '</button></div>' +
       '<div class="body">' +
       (shots ? '<div class="shots">' + shots + '</div>' : '<div class="note">No screenshot yet. Use Retake, or paste an image with Ctrl+V.</div>') +
-      (user
-        ? '<div class="as">Reporting as <b>' + esc(user.username) + '</b>' + (user.email ? ' · ' + esc(user.email) : '') + '</div>'
-        : '<div class="err">The logged-in user was not passed to HelpX, so a ticket cannot be raised. Please contact your administrator.</div>') +
+      (!user.askName && !user.askEmail
+        ? '<div class="as">Reporting as <b>' + esc(user.username) + '</b> · ' + esc(user.email) + '</div>'
+        : '') +
+      (user.askName && user.askEmail
+        ? '<div class="row">' +
+          '<label class="f">Username<input type="text" name="username" placeholder="Enter Username" maxlength="100" value="' + esc(state.draft.username) + '"></label>' +
+          '<label class="f">Email<input type="email" name="email" placeholder="Enter Email" maxlength="150" value="' + esc(state.draft.email) + '"></label>' +
+          '</div>'
+        : user.askEmail
+          ? '<div class="as">Reporting as <b>' + esc(user.username) + '</b></div>' +
+            '<label class="f">Email<input type="email" name="email" placeholder="Enter Email" maxlength="150" value="' + esc(state.draft.email) + '"></label>'
+          : user.askName
+            ? '<div class="as">Reporting as <b>' + esc(user.email) + '</b></div>' +
+              '<label class="f">Username<input type="text" name="username" placeholder="Enter Username" maxlength="100" value="' + esc(state.draft.username) + '"></label>'
+            : '') +
       '<label class="f">Subject<input type="text" name="subject" placeholder="Enter Subject" maxlength="200" value="' + esc(state.draft.subject) + '"></label>' +
       '<label class="f">Description<textarea name="description" placeholder="Describe your issue…">' + esc(state.draft.description) + '</textarea></label>' +
       '<div class="upload">Upload <button type="button" class="btn2" data-act="browse">' + ICON.clip + 'Choose files</button><input type="file" multiple hidden></div>' +
@@ -415,7 +441,7 @@
         : '') +
       (state.error ? '<div class="err">' + esc(state.error) + '</div>' : '') +
       '</div>' +
-      '<div class="foot"><button class="submit" data-act="submit"' + (state.sending || !user ? ' disabled' : '') + (!user ? ' title="The logged-in user was not passed to HelpX"' : '') + '>' + (state.sending ? '<span class="spin"></span> Submitting…' : 'Submit Ticket') + '</button></div>';
+      '<div class="foot"><button class="submit" data-act="submit"' + (state.sending ? ' disabled' : '') + '>' + (state.sending ? '<span class="spin"></span> Submitting…' : 'Submit Ticket') + '</button></div>';
   }
 
   function addFiles(list) {
@@ -450,11 +476,13 @@
 
   function submit() {
     remember();
-    var user = currentUser();
+    var user = reporter();
     var subject = state.draft.subject.trim();
     var description = state.draft.description.trim();
 
-    if (!user) state.error = 'The logged-in user was not passed to HelpX. Please contact your administrator.';
+    if (!user.username) state.error = 'Enter your username';
+    else if (!user.email) state.error = 'Enter your email';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user.email)) state.error = 'Enter a valid email address';
     else if (!subject) state.error = 'Enter a subject';
     else if (description.length < 5) state.error = 'Describe the issue in a few words';
     else state.error = null;
@@ -464,7 +492,7 @@
     form.append('appClientId', APP_CLIENT_ID);
     if (APP_NAME) form.append('productName', APP_NAME);
     form.append('username', user.username);
-    if (user.email) form.append('email', user.email);
+    form.append('email', user.email);
     if (user.clientName) form.append('clientName', user.clientName);
     if (user.product) form.append('product', user.product);
     form.append('subject', subject);
@@ -489,7 +517,7 @@
         state.sending = false;
         clearScreenshots();
         state.files = [];
-        state.draft = { subject: '', description: '' };
+        state.draft = { subject: '', description: '', username: state.draft.username, email: state.draft.email };
         state.result = result;
         try {
           window.dispatchEvent(new CustomEvent('helpx:ticket-created', { detail: result }));
