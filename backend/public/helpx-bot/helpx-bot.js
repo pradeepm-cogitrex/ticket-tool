@@ -413,9 +413,6 @@
       (state.screenshots.length
         ? '<label class="check"><input type="checkbox" name="include"' + (state.includeScreenshot ? ' checked' : '') + '> Include screenshot</label>'
         : '') +
-      (TYPES.length ? '<div class="types">Type: ' + TYPES.map(function (t) {
-        return '<label class="' + (state.type === t.value ? 'on' : '') + '"><input type="radio" name="type" value="' + t.value + '"' + (state.type === t.value ? ' checked' : '') + '>' + t.label + '</label>';
-      }).join('') + '</div>' : '') +
       (state.error ? '<div class="err">' + esc(state.error) + '</div>' : '') +
       '</div>' +
       '<div class="foot"><button class="submit" data-act="submit"' + (state.sending ? ' disabled' : '') + '>' + (state.sending ? '<span class="spin"></span> Submitting…' : 'Submit Ticket') + '</button></div>';
