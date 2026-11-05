@@ -234,7 +234,6 @@ export default function TicketList() {
         <div style={{ minWidth: 220 }}>
           <div className="cell-title cell-truncate">{t.subject}</div>
           <div className="cell-sub cell-tags">
-            {t.source === 'widget' && <span className="src-badge">Widget</span>}
             {t.ticketType && (
               <span className="type-badge" style={{ ['--c' as string]: t.ticketType.color }}>
                 {t.ticketType.name}

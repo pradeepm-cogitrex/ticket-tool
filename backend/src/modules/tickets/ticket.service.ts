@@ -139,7 +139,7 @@ export class TicketService {
     const status = await this.statusRepo.findDefault();
     if (!status) throw new BadRequestException('No default status. Set one in Masters › Status.');
 
-    if (dto.assignedToId) await this.ensureActiveEmployee(dto.assignedToId);
+    if (dto.assignedToId) await this.ensureAssignable(dto.assignedToId, mapping.clientId, mapping.productId);
     // the person raising the ticket is the logged-in employee
     const raiser = await this.ensureEmployee(user.id);
 
@@ -268,9 +268,12 @@ export class TicketService {
 
     // Assignee
     if (dto.assignedToId !== undefined && dto.assignedToId !== ticket.assignedToId) {
-      const employee = dto.assignedToId ? await this.ensureActiveEmployee(dto.assignedToId) : null;
+      const employee = dto.assignedToId ? await this.ensureAssignable(dto.assignedToId, nextClientId, nextProductId) : null;
       patch.assignedToId = employee?.id ?? null;
       record('Assigned to', ticket.assignedTo?.name ?? 'Unassigned', employee?.name ?? 'Unassigned');
+    } else if (pairChanged && ticket.assignedToId) {
+      // moved to another client product: the current assignee must work on it too
+      await this.ensureAssignable(ticket.assignedToId, nextClientId, nextProductId);
     }
 
     // User contact
@@ -470,9 +473,13 @@ export class TicketService {
     return employee;
   }
 
-  private async ensureActiveEmployee(employeeId: number) {
-    const employee = await this.employeeRepo.findById(employeeId);
+  /** Only an active employee mapped to the ticket's client product can be assigned. */
+  private async ensureAssignable(employeeId: number, clientId: number | null, productId: number) {
+    const employee = await this.employeeRepo.findById(employeeId, ['assignments']);
     if (!employee?.isActive) throw new BadRequestException('Assign the ticket to an active employee');
+    if (!employee.assignments?.some((a) => a.clientId === clientId && a.productId === productId)) {
+      throw new BadRequestException(`${employee.name} is not mapped to this ticket's client product`);
+    }
     return employee;
   }
 }

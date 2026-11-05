@@ -55,15 +55,16 @@ export default function TicketForm() {
     const agreed = mapping?.slas.find((x) => x.priorityId === priorityId);
     return { responseHrs: agreed?.responseHrs ?? p?.responseHrs ?? 0, resolveHrs: agreed?.resolveHrs ?? p?.resolveHrs ?? 0, agreed: !!agreed };
   };
-  // employees on the chosen client product first, ordered by their role priority there
+  // only employees mapped to the chosen client product, ordered by their role priority there
   const employees = useMemo(
     () =>
       (lookups?.employees ?? [])
-        .filter((e) => e.isActive && e.role !== 'super_admin')
+        .filter((e) => e.isActive)
         .map((e) => ({
           ...e,
           level: e.assignments.find((a) => a.clientId === values.clientId && a.productId === values.productId)?.rolePriority,
         }))
+        .filter((e) => e.level !== undefined)
         .sort((a, b) => (a.level ?? 99) - (b.level ?? 99) || a.name.localeCompare(b.name)),
     [lookups, values.clientId, values.productId],
   );
@@ -87,10 +88,12 @@ export default function TicketForm() {
     setField('clientId', id);
     setField('productId', 0);
     setField('moduleId', null);
+    assigneeTouched.current = false;
   };
   const chooseProduct = (id: number) => {
     setField('productId', id);
     setField('moduleId', null);
+    assigneeTouched.current = false;
   };
 
   // only one client / product available → fill it in
@@ -262,7 +265,9 @@ export default function TicketForm() {
                 ? `Suggested: P${suggestion.employee.level} on ${product?.name ?? 'this product'}${
                     suggestion.exact ? ` takes ${priority?.name}` : ` (no P${suggestion.target} employee yet)`
                   }`
-                : 'Optional. Employees of the chosen client product first, by role priority.'
+                : values.productId && !employees.length
+                  ? 'No employees mapped to this client product yet'
+                  : 'Optional. Employees mapped to the chosen client product, by role priority.'
             }
           >
             <SelectInput

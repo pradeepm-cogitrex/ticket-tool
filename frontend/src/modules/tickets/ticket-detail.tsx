@@ -258,7 +258,7 @@ export default function TicketDetail() {
             </div>
           )}
 
-          {tab === 'history' && <TicketHistory items={ticket.history} />}
+          {tab === 'history' && <TicketHistory ticket={ticket} />}
 
           {tab === 'files' && (
             <div className="detail-main__body">

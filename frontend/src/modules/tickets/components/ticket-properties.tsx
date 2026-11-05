@@ -86,6 +86,11 @@ export function TicketProperties({ ticket, lookups, saving, isAdmin, user, conta
           next.moduleId = null;
         }
       }
+      // a new client product: keep the assignee only if they are mapped to it
+      if ((key === 'clientId' || key === 'productId') && next.assignedToId) {
+        const assignee = lookups?.employees.find((e) => e.id === next.assignedToId);
+        if (!assignee?.assignments.some((a) => a.clientId === next.clientId && a.productId === next.productId)) next.assignedToId = null;
+      }
       return next;
     });
     if (key === 'resolutionNote' || key === 'statusId') setNoteError(null);
@@ -103,12 +108,12 @@ export function TicketProperties({ ticket, lookups, saving, isAdmin, user, conta
   const modules = (lookups?.modules ?? []).filter((m) => m.productId === draft.productId && (m.isActive || m.id === ticket.moduleId));
   const ticketTypes = (lookups?.ticketTypes ?? []).filter((t) => t.isActive || t.id === ticket.ticketTypeId);
   const priorities = (lookups?.priorities ?? []).filter((p) => p.isActive || p.id === ticket.priorityId);
-  // employees in this ticket's organization first, by role priority
+  // only active employees mapped to the chosen client product, by role priority
   const employees = (lookups?.employees ?? [])
-    .filter((e) => e.isActive || e.id === ticket.assignedToId)
-    .filter((e) => e.role !== 'super_admin' || e.id === ticket.assignedToId)
+    .filter((e) => e.isActive)
     .map((e) => ({ e, level: e.assignments.find((a) => a.clientId === draft.clientId && a.productId === draft.productId)?.rolePriority }))
-    .sort((a, b) => (a.level ?? 99) - (b.level ?? 99) || a.e.name.localeCompare(b.e.name));
+    .filter((x): x is { e: (typeof x)['e']; level: number } => x.level !== undefined)
+    .sort((a, b) => a.level - b.level || a.e.name.localeCompare(b.e.name));
 
   const pairChanged = draft.clientId !== original.clientId || draft.productId !== original.productId;
   const contactOptions =
