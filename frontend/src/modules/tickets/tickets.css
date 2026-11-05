@@ -938,6 +938,36 @@
   color: var(--muted);
 }
 
+.props__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+}
+
+.props__row-label {
+  font-weight: 600;
+  color: var(--fg-2);
+}
+
+.rca-by {
+  padding: 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.rca-by--agent {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+.rca-by--human {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
 .kv {
   display: grid;
   grid-template-columns: auto 1fr;

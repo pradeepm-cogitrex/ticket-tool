@@ -292,6 +292,13 @@ export class TicketService {
       record('Resolution note', ticket.resolutionNote, patch.resolutionNote);
     }
 
+    // RCA note: written or edited by an employee → RCA by Human
+    if (dto.rcaNote !== undefined && emptyToNull(dto.rcaNote) !== ticket.rcaNote) {
+      patch.rcaNote = emptyToNull(dto.rcaNote);
+      patch.rcaBy = patch.rcaNote ? 'human' : null;
+      record('RCA', ticket.rcaNote, patch.rcaNote);
+    }
+
     // Status (checks the note and sets the resolved date)
     if (dto.statusId !== undefined && dto.statusId !== ticket.statusId) {
       const status = await this.statusRepo.findById(dto.statusId);

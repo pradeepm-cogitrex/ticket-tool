@@ -136,4 +136,14 @@ export class Ticket extends AppBaseEntity {
 
   @Column({ name: 'resolution_note', type: 'text', nullable: true })
   resolutionNote: string | null;
+
+  /** Root cause analysis: what caused the issue (network, performance, code, data…). */
+  @Column({ name: 'rca_note', type: 'text', nullable: true })
+  rcaNote: string | null;
+
+  /** Who wrote the RCA: 'agent' when the automatic draft was submitted unchanged, 'human' otherwise. */
+  @Column({ name: 'rca_by', type: 'varchar', length: 10, nullable: true })
+  rcaBy: RcaBy | null;
 }
+
+export type RcaBy = 'agent' | 'human';

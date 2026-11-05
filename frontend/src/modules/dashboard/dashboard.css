@@ -687,7 +687,7 @@ a.stat:hover .stat__go {
 
 .recent__row {
   display: grid;
-  grid-template-columns: 130px minmax(0, 1fr) auto auto 150px auto;
+  grid-template-columns: 190px minmax(0, 1fr) auto auto 130px auto;
   align-items: center;
   gap: 14px;
   padding: 12px 8px;
@@ -700,6 +700,15 @@ a.stat:hover .stat__go {
 .recent__row:hover {
   background: var(--surface-hover);
   text-decoration: none;
+}
+
+/* TKT-SAKKU-HRMS-11/26/00042 fits; anything longer ends in … (full number on hover) */
+.recent__row .ticket-no {
+  display: block;
+  min-width: 0;
+  font-size: 11.5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .recent__main {

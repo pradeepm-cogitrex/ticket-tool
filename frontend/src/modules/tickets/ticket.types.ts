@@ -52,6 +52,10 @@ export interface Ticket extends BaseRecord {
   firstResponseAt: string | null;
   resolvedAt: string | null;
   resolutionNote: string | null;
+  /** root cause analysis */
+  rcaNote: string | null;
+  /** who wrote the RCA */
+  rcaBy: 'agent' | 'human' | null;
 }
 
 export interface TicketContact {
@@ -193,6 +197,7 @@ export interface UpdateTicketPayload {
   assignedToId?: number | null;
   contactId?: number | null;
   resolutionNote?: string | null;
+  rcaNote?: string | null;
 }
 
 export interface BulkUpdatePayload {

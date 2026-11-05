@@ -361,7 +361,9 @@ export default function DashboardView() {
               {(data?.recent ?? []).map((r) => (
                 <li key={r.id}>
                   <Link to={`/tickets/${r.ticketNo}`} className="recent__row">
-                    <span className="ticket-no">{r.ticketNo}</span>
+                    <span className="ticket-no" title={r.ticketNo ?? undefined}>
+                      {r.ticketNo}
+                    </span>
                     <span className="recent__main">
                       <span className="recent__subject">{r.subject}</span>
                       <span className="recent__meta">

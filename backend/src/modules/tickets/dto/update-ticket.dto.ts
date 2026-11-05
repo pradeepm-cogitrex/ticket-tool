@@ -60,4 +60,9 @@ export class UpdateTicketDto {
   @IsOptional()
   @IsString()
   resolutionNote?: string | null;
+
+  /** Root cause analysis; saved by an employee, so RCA by becomes Human. */
+  @IsOptional()
+  @IsString()
+  rcaNote?: string | null;
 }

@@ -29,6 +29,7 @@ type Draft = Required<Pick<UpdateTicketPayload, 'productId' | 'priorityId' | 'st
   assignedToId: number | null;
   contactId: number | null;
   resolutionNote: string;
+  rcaNote: string;
 };
 
 const toDraft = (t: TicketDetail): Draft => ({
@@ -41,7 +42,10 @@ const toDraft = (t: TicketDetail): Draft => ({
   assignedToId: t.assignedToId,
   contactId: t.contactId,
   resolutionNote: t.resolutionNote ?? '',
+  rcaNote: t.rcaNote ?? '',
 });
+
+const RCA_BY_LABEL = { agent: 'Agent', human: 'Human' } as const;
 
 /**
  * Right-hand panel: change Status, Priority, Assigned to… then Submit.
@@ -221,6 +225,31 @@ export function TicketProperties({ ticket, lookups, saving, isAdmin, user, conta
             options={modules.map((m) => ({ value: m.id, label: m.name }))}
           />
         </Field>
+
+        <div className="props__divider">Root cause (RCA)</div>
+        <Field
+          label="RCA note"
+          htmlFor="prop-rca"
+          hint={draft.rcaNote !== original.rcaNote ? 'Saving it sets RCA by to Human' : undefined}
+        >
+          <TextArea
+            id="prop-rca"
+            placeholder="What caused the issue: network, performance, code, data, access…"
+            rows={3}
+            style={{ minHeight: 84 }}
+            value={draft.rcaNote}
+            disabled={locked}
+            onChange={(e) => set('rcaNote', e.target.value)}
+          />
+        </Field>
+        <div className="props__row">
+          <span className="props__row-label">RCA by</span>
+          {ticket.rcaBy ? (
+            <span className={`rca-by rca-by--${ticket.rcaBy}`}>{RCA_BY_LABEL[ticket.rcaBy]}</span>
+          ) : (
+            <span className="muted">Not added yet</span>
+          )}
+        </div>
 
         <div className="props__divider">Raised by</div>
         <div className="raised-by">
