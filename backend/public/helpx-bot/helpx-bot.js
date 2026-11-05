@@ -415,7 +415,7 @@
         : '') +
       (state.error ? '<div class="err">' + esc(state.error) + '</div>' : '') +
       '</div>' +
-      '<div class="foot"><button class="submit" data-act="submit"' + (state.sending ? ' disabled' : '') + '>' + (state.sending ? '<span class="spin"></span> Submitting…' : 'Submit Ticket') + '</button></div>';
+      '<div class="foot"><button class="submit" data-act="submit"' + (state.sending || !user ? ' disabled' : '') + (!user ? ' title="The logged-in user was not passed to HelpX"' : '') + '>' + (state.sending ? '<span class="spin"></span> Submitting…' : 'Submit Ticket') + '</button></div>';
   }
 
   function addFiles(list) {
