@@ -97,10 +97,6 @@ export function IntegrationScriptDialog({ mapping, onClose }: IntegrationScriptD
             Copy logout code
           </Button>
         </div>
-        <p className="script-dialog__note">
-          <AlertCircle size={14} /> The widget does not ask for username or email; without step 2 tickets cannot be raised. Subject, description,
-          screenshot and attachments come from the widget form.
-        </p>
         <div className="dialog__actions">
           <Button onClick={onClose}>Close</Button>
         </div>
