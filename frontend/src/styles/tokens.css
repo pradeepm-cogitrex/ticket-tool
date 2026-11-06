@@ -2,11 +2,11 @@
   TicketDesk design tokens
   Direction: "emerald ink" — a deep green-black sidebar, porcelain work surface,
   a mint signal colour for primary actions and an amber highlight for SLA warnings.
-  Display: Bricolage Grotesque · Body: Manrope · Data: JetBrains Mono
+  Display: Bricolage Grotesque · Body: DM Sans · Data: JetBrains Mono
 */
 :root {
   --font-display: 'Bricolage Grotesque', 'Segoe UI', system-ui, sans-serif;
-  --font-body: 'Manrope', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-body: 'DM Sans', 'Segoe UI', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
 
   /* work surface */

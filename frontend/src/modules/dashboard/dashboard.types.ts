@@ -1,7 +1,16 @@
 import type { Ticket } from '@/modules/tickets/ticket.types';
 import type { StatusType } from '@/modules/masters/status/status.types';
 
-export type DashboardRange = 7 | 14 | 30 | 90;
+export type DashboardDays = 7 | 14 | 30 | 90;
+
+/** a preset number of days up to today, or a custom from / to */
+export type DashboardRange = DashboardDays | 'custom';
+
+/** yyyy-mm-dd, both days included */
+export interface CustomRange {
+  from: string;
+  to: string;
+}
 
 /** all = super admin (everything), team = admin (their client products), mine = employee (their own tickets) */
 export type DashboardScope = 'all' | 'team' | 'mine';
@@ -12,7 +21,11 @@ export interface DashboardFilter {
 }
 
 export interface DashboardSummary {
-  days: DashboardRange;
+  days: number;
+  /** yyyy-mm-dd, the window the range figures cover */
+  from: string;
+  to: string;
+  custom: boolean;
   scope: DashboardScope;
   totals: {
     open: number;

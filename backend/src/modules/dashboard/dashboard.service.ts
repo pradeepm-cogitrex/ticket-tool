@@ -18,6 +18,13 @@ const dateKey = (d: Date): string =>
  */
 export type DashboardScope = 'all' | 'team' | 'mine';
 
+/** The range figures cover `days` days starting at `from` (local midnight). */
+export interface DashboardWindow {
+  from: Date;
+  days: number;
+  custom: boolean;
+}
+
 export interface DashboardFilter {
   clientId?: number;
   productId?: number;
@@ -36,9 +43,13 @@ export class DashboardService {
     private readonly employeeRepo: EmployeeRepo,
   ) {}
 
-  async summary(user: AuthUser, days: number, filter: DashboardFilter) {
+  async summary(user: AuthUser, win: DashboardWindow, filter: DashboardFilter) {
     const m = this.ticketRepo.manager;
-    const back = days - 1; // window includes today
+    const { days } = win;
+    const end = new Date(win.from);
+    end.setDate(end.getDate() + days); // exclusive: the day after the last day
+    const range = [dateKey(win.from), dateKey(end)];
+    const inRange = (col: string) => `(${col} >= ? AND ${col} < ?)`;
 
     const kind: DashboardScope = user.role === Role.SuperAdmin ? 'all' : user.role === Role.Admin ? 'team' : 'mine';
     const pairs = kind === 'all' ? [] : await this.employeeRepo.pairsOf(user.id);
@@ -80,15 +91,15 @@ export class DashboardService {
              COALESCE(SUM(s.type = 'open' AND s.pauses_sla = 0 AND t.due_at < NOW()), 0) AS overdue,
              COALESCE(SUM(t.created_at >= CURDATE()), 0) AS createdToday,
              COALESCE(SUM(t.resolved_at >= CURDATE()), 0) AS resolvedToday,
-             COALESCE(SUM(t.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)), 0) AS createdInRange,
-             COALESCE(SUM(t.resolved_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)), 0) AS resolvedInRange,
-             COALESCE(SUM(t.resolved_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY) AND t.resolved_at <= t.due_at), 0) AS resolvedOnTime,
-             AVG(CASE WHEN t.resolved_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY)
+             COALESCE(SUM(${inRange('t.created_at')}), 0) AS createdInRange,
+             COALESCE(SUM(${inRange('t.resolved_at')}), 0) AS resolvedInRange,
+             COALESCE(SUM(${inRange('t.resolved_at')} AND t.resolved_at <= t.due_at), 0) AS resolvedOnTime,
+             AVG(CASE WHEN ${inRange('t.resolved_at')}
                       THEN TIMESTAMPDIFF(MINUTE, t.created_at, t.resolved_at) END) AS avgResolutionMins
            FROM tickets t
            JOIN statuses s ON s.id = t.status_id
           WHERE ${vis.sql}`,
-          [user.id, back, back, back, back, ...vis.params],
+          [user.id, ...range, ...range, ...range, ...range, ...vis.params],
         ) as Promise<Row[]>,
         m.query(
           `SELECT s.id, s.name, s.color, s.type, COUNT(t.id) AS total
@@ -109,12 +120,12 @@ export class DashboardService {
              JOIN clients c ON c.id = cp.client_id
              JOIN products p ON p.id = cp.product_id
              LEFT JOIN tickets t ON t.client_id = cp.client_id AND t.product_id = cp.product_id
-                  AND t.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY) AND ${vis.sql}
+                  AND ${inRange('t.created_at')} AND ${vis.sql}
              LEFT JOIN statuses s ON s.id = t.status_id
             WHERE cp.is_active = 1 AND c.is_active = 1 AND p.is_active = 1 AND ${cpVisible.sql}
             GROUP BY cp.id
             ORDER BY total DESC, c.sort_order, c.name, p.sort_order`,
-          [back, ...vis.params, ...cpVisible.params],
+          [...range, ...vis.params, ...cpVisible.params],
         ) as Promise<Row[]>,
         m.query(
           `SELECT pr.id, pr.name, pr.color, COUNT(t.id) AS total
@@ -130,16 +141,16 @@ export class DashboardService {
         m.query(
           `SELECT DATE_FORMAT(t.created_at, '%Y-%m-%d') AS day, COUNT(*) AS total
              FROM tickets t
-            WHERE t.created_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY) AND ${vis.sql}
+            WHERE ${inRange('t.created_at')} AND ${vis.sql}
             GROUP BY day`,
-          [back, ...vis.params],
+          [...range, ...vis.params],
         ) as Promise<Row[]>,
         m.query(
           `SELECT DATE_FORMAT(t.resolved_at, '%Y-%m-%d') AS day, COUNT(*) AS total
              FROM tickets t
-            WHERE t.resolved_at >= DATE_SUB(CURDATE(), INTERVAL ? DAY) AND ${vis.sql}
+            WHERE ${inRange('t.resolved_at')} AND ${vis.sql}
             GROUP BY day`,
-          [back, ...vis.params],
+          [...range, ...vis.params],
         ) as Promise<Row[]>,
         m.query(
           `SELECT a.id, a.name, COUNT(t.id) AS total
@@ -163,15 +174,17 @@ export class DashboardService {
     const created = new Map(createdTrend.map((r) => [String(r.day), num(r.total)]));
     const resolved = new Map(resolvedTrend.map((r) => [String(r.day), num(r.total)]));
     const trend = Array.from({ length: days }, (_, i) => {
-      const d = new Date();
-      d.setHours(0, 0, 0, 0);
-      d.setDate(d.getDate() - back + i);
+      const d = new Date(win.from);
+      d.setDate(d.getDate() + i);
       const key = dateKey(d);
       return { date: key, created: created.get(key) ?? 0, resolved: resolved.get(key) ?? 0 };
     });
 
     return {
       days,
+      from: range[0],
+      to: dateKey(new Date(end.getFullYear(), end.getMonth(), end.getDate() - 1)),
+      custom: win.custom,
       scope: kind,
       filter: { clientId: filter.clientId ?? null, productId: filter.productId ?? null },
       totals: {

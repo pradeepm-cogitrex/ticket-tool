@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import {
   AlarmClockOff,
   ArrowRight,
+  CalendarRange,
   CheckCheck,
   Gauge,
   Inbox,
@@ -21,17 +22,18 @@ import { SelectInput } from '@/shared/components/form/select-input';
 import { Segmented } from '@/shared/components/segmented';
 import { clientsOf, myClientProducts, productsOf, useLookups } from '@/modules/masters/use-lookups';
 import { errorMessage } from '@/shared/services/api.service';
-import { greeting, longDate, timeAgo } from '@/shared/utils/date.util';
+import { formatShortDate, greeting, longDate, timeAgo, toInputDate } from '@/shared/utils/date.util';
 import { plural } from '@/shared/utils/format.util';
 import { SlaRing } from './components/sla-ring';
 import { StatCard } from './components/stat-card';
 import { StatusDonut } from './components/status-donut';
 import { TrendChart } from './components/trend-chart';
 import { dashboardService } from './dashboard.service';
-import type { DashboardFilter, DashboardRange, DashboardScope, DashboardSummary } from './dashboard.types';
+import type { CustomRange, DashboardFilter, DashboardRange, DashboardScope, DashboardSummary } from './dashboard.types';
 import './dashboard.css';
 
 const RANGE_KEY = 'td.dashRange';
+const CUSTOM_KEY = 'td.dashCustom';
 
 const SCOPE_LABEL: Record<DashboardScope, string> = {
   all: 'All clients and products',
@@ -41,21 +43,43 @@ const SCOPE_LABEL: Record<DashboardScope, string> = {
 
 const initialRange = (): DashboardRange => {
   try {
-    const saved = Number(localStorage.getItem(RANGE_KEY));
-    return ([7, 14, 30, 90] as const).includes(saved as DashboardRange) ? (saved as DashboardRange) : 14;
+    const raw = localStorage.getItem(RANGE_KEY);
+    if (raw === 'custom') return 'custom';
+    const saved = Number(raw);
+    return ([7, 14, 30, 90] as const).includes(saved as 7) ? (saved as DashboardRange) : 14;
   } catch {
     return 14;
   }
 };
 
+/** the last custom from / to, or the last 30 days */
+const initialCustom = (): CustomRange => {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CUSTOM_KEY) ?? 'null') as CustomRange | null;
+    if (saved?.from && saved?.to) return saved;
+  } catch {
+    /* ignore */
+  }
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 29);
+  return { from: toInputDate(from), to: toInputDate(to) };
+};
+
+const validCustom = (c: CustomRange) => !!c.from && !!c.to && c.from <= c.to;
+
 export default function DashboardView() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [range, setRange] = useState<DashboardRange>(initialRange);
+  const [custom, setCustom] = useState<CustomRange>(initialCustom);
+  const customOk = validCustom(custom);
   const { lookups } = useLookups();
   const [filter, setFilter] = useState<DashboardFilter>({});
-  // Client / Product dropdowns: every pair for a super admin, otherwise the user's own client products
+  // Client / Product dropdowns: every pair for a super admin, otherwise the user's own client products.
+  // Super admins and admins pick a client then a product; an employee only picks among their own products.
   const pairs = useMemo(() => myClientProducts(lookups, user), [lookups, user]);
+  const showClient = user?.role === 'super_admin' || user?.role === 'admin';
   const clientOptions = clientsOf(pairs);
   const productOptions = productsOf(filter.clientId ? pairs.filter((cp) => cp.clientId === filter.clientId) : pairs);
   const [data, setData] = useState<DashboardSummary | null>(null);
@@ -63,25 +87,32 @@ export default function DashboardView() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    if (range === 'custom' && !customOk) return; // wait for a complete from / to
     setLoading(true);
     setError(null);
     try {
-      setData(await dashboardService.summary(range, filter));
+      setData(await dashboardService.summary(range === 'custom' ? custom : range, filter));
     } catch (e) {
       setError(errorMessage(e));
     } finally {
       setLoading(false);
     }
-  }, [range, filter]);
+  }, [range, custom, customOk, filter]);
 
   useEffect(() => {
     load();
     try {
       localStorage.setItem(RANGE_KEY, String(range));
+      if (customOk) localStorage.setItem(CUSTOM_KEY, JSON.stringify(custom));
     } catch {
       /* ignore */
     }
-  }, [load, range]);
+  }, [load, range, custom, customOk]);
+
+  // "in 14 days" / "in the last 14 days", or "between 1 Oct and 15 Oct" for a custom range
+  const customLabel = data?.custom ? `${formatShortDate(data.from)} – ${formatShortDate(data.to)}` : null;
+  const inRangeText = customLabel ? `between ${customLabel}` : `in ${data?.days ?? range} days`;
+  const lastRangeText = customLabel ?? `last ${data?.days ?? range} days`;
 
   const t = data?.totals;
   const firstName = user?.name.split(' ')[0] ?? 'there';
@@ -141,7 +172,7 @@ export default function DashboardView() {
           Overview {data && <span className="dash__scope">{SCOPE_LABEL[data.scope]}</span>}
         </h2>
         <div className="dash__bar-right">
-          {clientOptions.length > 1 && (
+          {showClient && clientOptions.length > 0 && (
             <SelectInput
               className="master-filter"
               aria-label="Client"
@@ -151,7 +182,7 @@ export default function DashboardView() {
               options={clientOptions.map((c) => ({ value: c.id, label: c.name }))}
             />
           )}
-          {productOptions.length > 1 && (
+          {productOptions.length > 0 && (
             <SelectInput
               className="master-filter"
               aria-label="Product"
@@ -170,8 +201,32 @@ export default function DashboardView() {
               { value: 14, label: '14 days' },
               { value: 30, label: '30 days' },
               { value: 90, label: '90 days' },
+              { value: 'custom', label: 'Custom' },
             ]}
           />
+          {range === 'custom' && (
+            <div className={`date-range${customOk ? '' : ' date-range--error'}`} title="From – to">
+              <CalendarRange />
+              <input
+                type="date"
+                className="date-range__input"
+                aria-label="From date"
+                value={custom.from}
+                max={custom.to || toInputDate(new Date())}
+                onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))}
+              />
+              <span>–</span>
+              <input
+                type="date"
+                className="date-range__input"
+                aria-label="To date"
+                value={custom.to}
+                min={custom.from || undefined}
+                max={toInputDate(new Date())}
+                onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))}
+              />
+            </div>
+          )}
           <Button iconOnly variant="ghost" icon={<RefreshCw className={loading ? 'spin' : undefined} />} onClick={load} aria-label="Refresh" />
         </div>
       </div>
@@ -198,7 +253,7 @@ export default function DashboardView() {
         <StatCard
           label="Resolved"
           value={t?.resolvedInRange ?? '–'}
-          hint={t ? `of ${t.createdInRange} created in ${range} days` : ' '}
+          hint={t ? `of ${t.createdInRange} created ${inRangeText}` : ' '}
           icon={<CheckCheck />}
           tone="info"
           to={`/tickets?tab=closed${listQuery}`}
@@ -223,7 +278,7 @@ export default function DashboardView() {
           <div className="card__head">
             <div>
               <div className="card__title">Ticket flow</div>
-              <div className="card__sub">Created vs resolved per day, last {range} days</div>
+              <div className="card__sub">Created vs resolved per day, {lastRangeText}</div>
             </div>
             <div className="legend-inline">
               <span>
@@ -253,7 +308,7 @@ export default function DashboardView() {
           <div className="card__head">
             <div>
               <div className="card__title">By client · product</div>
-              <div className="card__sub">Created in the last {range} days</div>
+              <div className="card__sub">Created {customLabel ? `between ${customLabel}` : `in the last ${data?.days ?? range} days`}</div>
             </div>
           </div>
           <div className="card__body">

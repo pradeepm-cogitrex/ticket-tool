@@ -1,5 +1,5 @@
 import { ReactNode, useCallback, useRef, useState } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, Search } from 'lucide-react';
 import { useClickOutside } from '../../hooks/use-click-outside';
 import { cn } from '../../utils/cn.util';
 
@@ -21,18 +21,28 @@ interface MultiSelectProps {
   align?: 'left' | 'right';
 }
 
+const SEARCH_FROM = 8;
+
 export function MultiSelect({ id, options, value, onChange, placeholder = 'Select…', compact, label, align = 'left' }: MultiSelectProps) {
   const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
   const ref = useRef<HTMLDivElement>(null);
-  const close = useCallback(() => setOpen(false), []);
+  const close = useCallback(() => {
+    setOpen(false);
+    setQuery('');
+  }, []);
   useClickOutside(ref, close, open);
 
   const toggle = (v: number) => onChange(value.includes(v) ? value.filter((x) => x !== v) : [...value, v]);
   const selected = options.filter((o) => value.includes(o.value));
+  // long lists (many clients / products) get a search box
+  const searchable = options.length > SEARCH_FROM;
+  const q = query.trim().toLowerCase();
+  const shown = q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
 
   return (
     <div className={cn('multi', compact && 'multi--compact')} ref={ref}>
-      <button id={id} type="button" className="multi__trigger" aria-expanded={open} aria-haspopup="listbox" onClick={() => setOpen((o) => !o)}>
+      <button id={id} type="button" className="multi__trigger" aria-expanded={open} aria-haspopup="listbox" onClick={() => (open ? close() : setOpen(true))}>
         {compact ? (
           <>
             <span>{label}</span>
@@ -54,8 +64,15 @@ export function MultiSelect({ id, options, value, onChange, placeholder = 'Selec
 
       {open && (
         <div className={cn('popover', align === 'right' && 'popover--right')} role="listbox" aria-multiselectable>
+          {searchable && (
+            <div className="popover__search">
+              <Search />
+              <input autoFocus placeholder="Search…" value={query} onChange={(e) => setQuery(e.target.value)} aria-label="Search options" />
+            </div>
+          )}
           {options.length === 0 && <div className="option muted">Nothing to choose yet</div>}
-          {options.map((o) => (
+          {options.length > 0 && shown.length === 0 && <div className="option muted">No matches</div>}
+          {shown.map((o) => (
             <button
               key={o.value}
               type="button"

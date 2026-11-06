@@ -1,4 +1,7 @@
-import { Check, Minus, Plus } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Minus, Plus, X } from 'lucide-react';
+import { Button } from '@/shared/components/button';
+import { SelectInput } from '@/shared/components/form/select-input';
 import type { ClientProduct } from '../../client-product/client-product.types';
 import { clientsOf } from '../../use-lookups';
 import type { Priority } from '../../priority/priority.types';
@@ -16,91 +19,116 @@ interface AssignmentPickerProps {
 const same = (a: { clientId: number; productId: number }, b: { clientId: number; productId: number }) =>
   a.clientId === b.clientId && a.productId === b.productId;
 
+const ALL = 'all';
+
 /**
- * Tick every client product the employee works on, e.g. HRMS for Sakku and HRMS for Google,
- * then set their role priority in each. Grouped by client.
+ * Pick a client, then one of its products (or all of them), and add it.
+ * Only the assigned client products are listed, so the form stays short however many clients and products exist.
  */
 export function AssignmentPicker({ clientProducts, priorities, value, onChange }: AssignmentPickerProps) {
-  const find = (cp: ClientProduct) => value.find((a) => same(a, cp));
+  const clients = useMemo(() => clientsOf(clientProducts), [clientProducts]);
+  const [clientId, setClientId] = useState<number | ''>(() => (clients.length === 1 ? clients[0].id : ''));
+  const [productKey, setProductKey] = useState<string>('');
 
-  const toggle = (cp: ClientProduct) =>
-    onChange(
-      find(cp)
-        ? value.filter((a) => !same(a, cp))
-        : [...value, { clientId: cp.clientId, productId: cp.productId, rolePriority: 1 }],
-    );
+  const isAssigned = (cp: ClientProduct) => value.some((a) => same(a, cp));
+  // products of the chosen client that are not assigned yet
+  const available = clientId ? clientProducts.filter((cp) => cp.clientId === clientId && !isAssigned(cp)) : [];
 
-  const setLevel = (cp: ClientProduct, rolePriority: number) =>
-    onChange(
-      value.map((a) => (same(a, cp) ? { ...a, rolePriority: Math.min(Math.max(rolePriority, 1), MAX_ROLE_PRIORITY) } : a)),
-    );
+  const add = () => {
+    const picked = productKey === ALL ? available : available.filter((cp) => String(cp.productId) === productKey);
+    if (!picked.length) return;
+    onChange([...value, ...picked.map((cp) => ({ clientId: cp.clientId, productId: cp.productId, rolePriority: 1 }))]);
+    setProductKey('');
+  };
+
+  const remove = (a: AssignmentInput) => onChange(value.filter((x) => !same(x, a)));
+
+  const setLevel = (a: AssignmentInput, rolePriority: number) =>
+    onChange(value.map((x) => (same(x, a) ? { ...x, rolePriority: Math.min(Math.max(rolePriority, 1), MAX_ROLE_PRIORITY) } : x)));
 
   if (!clientProducts.length) return <p className="muted">Map products to clients in Masters › Client-Product Map first.</p>;
 
-  return (
-    <div>
-      {clientsOf(clientProducts).map((client) => (
-        <div key={client.id} className="assign-group">
-          <div className="assign-group__title">
-            <span className="code-badge">{client.code}</span> {client.name}
-          </div>
-          <ul className="org-pick">
-            {clientProducts
-              .filter((cp) => cp.clientId === client.id)
-              .map((cp) => {
-                const mapped = find(cp);
-                const takes = mapped ? levelTakes(mapped.rolePriority, priorities) : '';
-                const inactive = !cp.isActive || !cp.client.isActive || !cp.product.isActive;
-                return (
-                  <li key={cp.id} className={mapped ? 'is-on' : undefined}>
-                    <button type="button" className="org-pick__toggle" role="checkbox" aria-checked={!!mapped} onClick={() => toggle(cp)}>
-                      <span className="option__check">{mapped && <Check />}</span>
-                      <span className="org-pick__name">
-                        {cp.product.name}
-                        {inactive && <small> (inactive)</small>}
-                      </span>
-                    </button>
+  // assigned rows, in client then product order
+  const rows = clientProducts
+    .map((cp) => ({ cp, a: value.find((x) => same(x, cp)) }))
+    .filter((r): r is { cp: ClientProduct; a: AssignmentInput } => !!r.a);
 
-                    {mapped ? (
-                      <div className="org-pick__level">
-                        <span className="org-pick__label">Role priority</span>
-                        <div className="stepper">
-                          <button
-                            type="button"
-                            onClick={() => setLevel(cp, mapped.rolePriority - 1)}
-                            disabled={mapped.rolePriority <= 1}
-                            aria-label="Raise priority"
-                          >
-                            <Minus size={14} />
-                          </button>
-                          <input
-                            type="number"
-                            min={1}
-                            max={MAX_ROLE_PRIORITY}
-                            value={mapped.rolePriority}
-                            onChange={(e) => setLevel(cp, Number(e.target.value) || 1)}
-                            aria-label={`Role priority in ${cp.product.name} for ${cp.client.name}`}
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setLevel(cp, mapped.rolePriority + 1)}
-                            disabled={mapped.rolePriority >= MAX_ROLE_PRIORITY}
-                            aria-label="Lower priority"
-                          >
-                            <Plus size={14} />
-                          </button>
-                        </div>
-                        <span className="org-pick__takes">{takes ? `Takes ${takes}` : 'No ticket priority set to this level'}</span>
-                      </div>
-                    ) : (
-                      <span className="org-pick__off">Not assigned</span>
-                    )}
-                  </li>
-                );
-              })}
-          </ul>
-        </div>
-      ))}
+  return (
+    <div className="assign">
+      <div className="assign__add">
+        <SelectInput
+          aria-label="Client"
+          placeholder="Select client"
+          value={clientId}
+          onChange={(e) => {
+            setClientId(e.target.value ? Number(e.target.value) : '');
+            setProductKey('');
+          }}
+          options={clients.map((c) => ({ value: c.id, label: `${c.name} (${c.code})` }))}
+        />
+        <SelectInput
+          aria-label="Product"
+          placeholder={!clientId ? 'Select a client first' : available.length ? 'Select product' : 'All products assigned'}
+          value={productKey}
+          disabled={!clientId || !available.length}
+          onChange={(e) => setProductKey(e.target.value)}
+          options={[
+            ...(available.length > 1 ? [{ value: ALL, label: `All products (${available.length})` }] : []),
+            ...available.map((cp) => ({
+              value: String(cp.productId),
+              label: `${cp.product.name}${!cp.isActive || !cp.product.isActive ? ' (inactive)' : ''}`,
+            })),
+          ]}
+        />
+        <Button icon={<Plus />} onClick={add} disabled={!productKey}>
+          Add
+        </Button>
+      </div>
+
+      {rows.length ? (
+        <ul className="assign__list">
+          {rows.map(({ cp, a }) => {
+            const takes = levelTakes(a.rolePriority, priorities);
+            return (
+              <li key={cp.id} className="assign__row">
+                <span className="code-badge" title={cp.client.name}>
+                  {cp.client.code}
+                </span>
+                <span className="assign__name">
+                  {cp.product.name}
+                  <small>{takes ? `Takes ${takes}` : 'No ticket priority at this level'}</small>
+                </span>
+                <div className="stepper" title="Role priority">
+                  <button type="button" onClick={() => setLevel(a, a.rolePriority - 1)} disabled={a.rolePriority <= 1} aria-label="Raise priority">
+                    <Minus size={14} />
+                  </button>
+                  <input
+                    type="number"
+                    min={1}
+                    max={MAX_ROLE_PRIORITY}
+                    value={a.rolePriority}
+                    onChange={(e) => setLevel(a, Number(e.target.value) || 1)}
+                    aria-label={`Role priority in ${cp.product.name} for ${cp.client.name}`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setLevel(a, a.rolePriority + 1)}
+                    disabled={a.rolePriority >= MAX_ROLE_PRIORITY}
+                    aria-label="Lower priority"
+                  >
+                    <Plus size={14} />
+                  </button>
+                </div>
+                <button type="button" className="assign__remove" onClick={() => remove(a)} aria-label={`Remove ${cp.product.name} for ${cp.client.name}`}>
+                  <X size={15} />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : (
+        <p className="assign__empty">Not assigned to any client product yet.</p>
+      )}
     </div>
   );
 }
